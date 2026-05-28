@@ -1,0 +1,51 @@
+{
+  "skill_name": "spring-java-log-standardization",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Tenho uma API Spring Boot de pedidos. Preciso padronizar logs em JSON com Correlation Id e Transaction Id no MDC. Quero só INFO/WARN/ERROR, com limpeza do MDC ao final de cada request. Gere dependências, logback-spring.xml e um filtro/interceptor completo.",
+      "expected_output": "Inclui dependências Maven (logback-classic, logstash-logback-encoder), configuração logback-spring.xml com LogstashEncoder serializando MDC, OncePerRequestFilter inicializando/limpando MDC com try/finally, e exemplos de log com kv() sem DEBUG/TRACE.",
+      "files": [],
+      "assertions": [
+        { "id": "has-maven-deps", "description": "Inclui dependências Maven: logback-classic, logstash-logback-encoder e slf4j-api" },
+        { "id": "has-logback-spring-xml", "description": "Contém configuração logback-spring.xml com LogstashEncoder ou equivalente JSON" },
+        { "id": "has-mdc-correlation-id", "description": "MDC contém correlationId" },
+        { "id": "has-mdc-transaction-id", "description": "MDC contém transactionId" },
+        { "id": "has-once-per-request-filter", "description": "Usa OncePerRequestFilter para inicializar MDC" },
+        { "id": "has-mdc-clear-finally", "description": "MDC.clear() é chamado em bloco finally" },
+        { "id": "no-debug-trace", "description": "Não usa os níveis DEBUG ou TRACE — apenas INFO, WARN, ERROR" },
+        { "id": "has-kv-usage", "description": "Exemplos de log usam StructuredArguments.kv() para campos estruturados" },
+        { "id": "has-mdc-context-utility", "description": "Usa classe MdcContext (ou equivalente utilitário) para centralizar a inicialização e limpeza do MDC, em vez de MDC.put() espalhado" }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "No meu consumidor Kafka em Java, os logs estão pobres. Preciso de mensagens descritivas e mascaramento de PII, senha, token e apiKey. Também quero userId e serviceName no MDC quando disponíveis. Mostre como inicializar e limpar MDC por evento.",
+      "expected_output": "Entrega padrão de inicialização/limpeza de MDC por evento Kafka, MaskingJsonGeneratorDecorator ou SensitiveDataMasker, userId/serviceName no MDC, e exemplos de logs INFO/WARN/ERROR com mensagens descritivas e contexto de negócio.",
+      "files": [],
+      "assertions": [
+        { "id": "has-kafka-mdc-init", "description": "Mostra inicialização de MDC no início do handler de evento Kafka" },
+        { "id": "has-mdc-clear-finally-event", "description": "MDC.clear() chamado em finally no contexto de evento" },
+        { "id": "has-userid-servicename-mdc", "description": "userId e serviceName são incluídos no MDC quando disponíveis" },
+        { "id": "has-masking-strategy", "description": "Apresenta estratégia de mascaramento de dados sensíveis (PII, senha, token, apiKey)" },
+        { "id": "has-masking-json-decorator-or-utility", "description": "Usa MaskingJsonGeneratorDecorator no logback ou utilitário de masking" },
+        { "id": "has-descriptive-log-messages", "description": "Exemplos de log têm mensagens descritivas com contexto de negócio (não genéricas)" },
+        { "id": "no-raw-pii-in-logs", "description": "Nos exemplos POSITIVOS de log (fora de seções marcadas como ❌ ou 'Evite'), nenhum dado sensível é exposto sem mascaramento" }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Estou investigando erro intermitente de pagamento em Spring. Quero logs de erro que mostrem exatamente o que falhou, onde e quando, incluindo stacktrace e contexto útil. Reestruture exemplos ruins como 'Erro' para mensagens diagnósticas.",
+      "expected_output": "Apresenta comparação antes/depois de mensagens ruins vs diagnósticas, log.error() com Throwable e kv() fields relevantes (orderId, paymentProvider, errorCode), uso de correlationId/transactionId do MDC, e configuração de stacktrace no logback.",
+      "files": [],
+      "assertions": [
+        { "id": "has-before-after-comparison", "description": "Apresenta comparação antes/depois: padrão ruim vs padrão diagnóstico" },
+        { "id": "has-throwable-in-error", "description": "Exemplos de log.error() passam o Throwable como argumento" },
+        { "id": "has-error-context-fields", "description": "Logs de erro contêm campos estruturados: pelo menos orderId/paymentProvider/errorCode" },
+        { "id": "has-correlation-in-error", "description": "Logs de erro referem o uso de correlationId/transactionId (do MDC)" },
+        { "id": "no-generic-error-messages", "description": "Nos exemplos POSITIVOS (fora de seções ❌ ou 'Evite'), nenhuma mensagem genérica como 'Erro', 'Falha', 'Exception' isolada é usada" },
+        { "id": "has-stacktrace-config", "description": "Menciona ou configura stacktrace no logback (ShortenedThrowableConverter ou equivalente)" }
+      ]
+    }
+  ]
+}
