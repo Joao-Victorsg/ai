@@ -1,0 +1,47 @@
+{
+  "skill_name": "spring-java-sqs-listener",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Configure um worker SQS em Java 25 com Spring Boot 4 usando Jackson 3. A fila se chama 'pedidos' e o evento tem pedidoId, clienteId e valorTotal.",
+      "expected_output": "Dependências (BOM spring-cloud-aws 4.0.0 + starter-sqs), config do SqsAsyncClient via application.yml, um record PedidoEvent, e um @SqsListener que desserializa direto para o record (sem receber String). Deve perguntar o modo de ack antes de gerar (ou assumir ON_SUCCESS como default explicitando isso).",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Meu worker recebe 3 tipos de evento diferentes pelo mesmo SQS, como diferenciar e desserializar cada um?",
+      "expected_output": "Deve perguntar a abordagem (sealed interface vs @SqsHandler), os 3 tipos e seus DTOs (records). Default = sealed interface com @JsonTypeInfo/@JsonSubTypes e switch por pattern matching. Deve mencionar a alternativa @SqsHandler e o header de tipo (JavaType / payloadTypeMapper).",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Quero que o acknowledge seja feito de forma automática quando o listener processar com sucesso, sem precisar chamar o ack manualmente.",
+      "expected_output": "Deve identificar AcknowledgementMode.ON_SUCCESS, explicar que o ack ocorre ao retornar sem exceção, e mostrar o listener sem parâmetro Acknowledgement. Deve mencionar que em caso de exceção a mensagem não é confirmada e o SQS reentrega.",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "Configure o SqsAsyncClient via properties no application.yml.",
+      "expected_output": "YAML com spring.cloud.aws.region.static, credentials (access-key/secret-key), endpoint para local, e listener defaults (max-concurrent-messages, max-messages-per-poll, poll-timeout). Deve avisar que em produção não se declaram credenciais/endpoint (IAM role) e que ack-mode e visibility NÃO são propriedades.",
+      "files": []
+    },
+    {
+      "id": 5,
+      "prompt": "Como garantir idempotência no meu worker SQS?",
+      "expected_output": "Deve explicar que o SQS garante entrega at-least-once (não exactly-once), que duplicatas são esperadas, e que tratar idempotência é responsabilidade da aplicação — fora do escopo da skill. NÃO deve gerar uma implementação de idempotência (tabela, Redis, etc.).",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "O que acontece com a mensagem se meu worker lançar uma exceção?",
+      "expected_output": "Deve explicar: a mensagem não é confirmada, o SQS reentrega após o visibilityTimeout, e após maxReceiveCount vai para a DLQ automaticamente (infra da fila). Não deve sugerir retry no listener nem publicação manual na DLQ. Pode mencionar a armadilha do ErrorHandler que confirma a mensagem se não relançar.",
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "Qual a diferença entre ON_SUCCESS e MANUAL no AcknowledgementMode?",
+      "expected_output": "ON_SUCCESS: ack automático ao retornar sem exceção. MANUAL: o código chama acknowledgement.acknowledge() explicitamente (recebe Acknowledgement no método). Deve explicar o trade-off (MANUAL dá controle, ex. confirmar só após persistir; ON_SUCCESS é mais simples) e que ambos não confirmam em caso de exceção, permitindo reentrega.",
+      "files": []
+    }
+  ]
+}
