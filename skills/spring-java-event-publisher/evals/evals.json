@@ -1,0 +1,23 @@
+{
+  "skill_name": "spring-java-event-publisher",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Preciso publicar um evento no SQS quando um usuário faz cadastro no nosso sistema. Estamos usando Spring Boot 4 com Spring Cloud AWS 4. O evento tem userId (UUID), email e createdAt (Instant). A fila é uma Standard (não FIFO). Pode gerar o publisher completo?",
+      "expected_output": "Publisher completo com: record UsuarioCadastradoEvent (userId UUID, email String, createdAt Instant), classe UsuarioPublisher com SqsTemplate injetado e nome da fila via @Value, método publicar() retornando SendResult, logs com kv() do logstash, imports corretos (tools.jackson não com.fasterxml). A fila deve ser injetada como @Value, não passada como literal \"${...}\" em método.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Temos um tópico SNS FIFO de pedidos e preciso publicar mensagens nele. Cada pedido tem: pedidoId (String, UUID), clienteId (String) e valorTotal (BigDecimal). O groupId deve ser o clienteId e o deduplicationId o pedidoId. Como fazer com Spring Cloud AWS 4?",
+      "expected_output": "Publisher com: record PedidoCriadoEvent, SnsOperations injetado (não SnsTemplate diretamente para FIFO), método publicar() usando SnsNotification.builder(event).groupId(clienteId).deduplicationId(pedidoId).build(), topic ARN injetado via @Value, dependência spring-cloud-aws-starter-sns no pom.xml, e nota sobre FIFO exigir groupId.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Tenho que publicar eventos de pagamento no SQS em lote — receebo uma lista de até 50 pagamentos por vez para enviar. Cada PagamentoEvent tem: pagamentoId, pedidoId, valor e status. Como fazer batch com Spring Cloud AWS 4? Precisa tratar falhas parciais do lote.",
+      "expected_output": "Publisher com batch usando sqsTemplate.sendMany(), particionamento manual da lista em sublistas de até 10 (limite SQS), tratamento de SendResult.Batch com successful() e failed() separados, logs para cada resultado, e aviso claro sobre o limite de 10 mensagens por lote do SQS.",
+      "files": []
+    }
+  ]
+}
