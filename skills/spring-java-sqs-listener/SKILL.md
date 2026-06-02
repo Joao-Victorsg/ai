@@ -1,6 +1,6 @@
 ---
 name: spring-java-sqs-listener
-description: Implementa workers (consumidores) SQS em Java 25 + Spring Boot 4 com Spring Cloud AWS 4 e Jackson 3 — @SqsListener desserializando direto para records, @SqsHandler/sealed interface para múltiplos tipos de evento, AcknowledgementMode (MANUAL/ON_SUCCESS/ALWAYS), tuning de container (concorrência, visibilityTimeout, maxMessagesPerPoll, pollTimeout, backpressure) e MDC via MessageInterceptor. Use sempre que o usuário pedir um worker/listener/consumer SQS, mencionar @SqsListener, @SqsHandler, AcknowledgementMode, SqsAsyncClient, consumir/processar mensagens ou eventos de uma fila SQS, desserializar payload de SQS, configurar concorrência/visibility timeout/DLQ de SQS, ou perguntar o que acontece quando o worker lança exceção — mesmo sem citar "skill" ou "Spring Cloud AWS".
+description: Implementa workers (consumidores) SQS em Java 25 + Spring Boot 4 com Spring Cloud AWS 4 e Jackson 3 — @SqsListener desserializando direto para records, @SqsHandler/sealed interface para múltiplos tipos de evento, AcknowledgementMode (MANUAL/ON_SUCCESS/ALWAYS), tuning de container (concorrência, visibilityTimeout, maxMessagesPerPoll, pollTimeout, backpressure), MDC via MessageInterceptor e @SnsNotificationMessage/SnsNotification para filas subscritas em tópicos SNS. Use sempre que o usuário pedir um worker/listener/consumer SQS, mencionar @SqsListener, @SqsHandler, AcknowledgementMode, SqsAsyncClient, consumir/processar mensagens ou eventos de uma fila SQS, desserializar payload de SQS, configurar concorrência/visibility timeout/DLQ de SQS, perguntar o que acontece quando o worker lança exceção, ou mencionar @SnsNotificationMessage, SnsNotification, fila subscrita em tópico SNS, SNS fan-out para SQS — mesmo sem citar "skill" ou "Spring Cloud AWS".
 ---
 
 # Worker SQS — Spring Cloud AWS 4 · Spring Boot 4 · Java 25
@@ -30,6 +30,7 @@ Use esta skill para implementar **consumidores (workers)** de filas Amazon SQS. 
 | O worker recebe **mais de um tipo** de evento na mesma fila | `references/multi-type-events.md` |
 | Precisa **tunar throughput/concorrência**, entender blocking vs não-blocking, backpressure, dimensionamento de threads | `references/container-tuning.md` |
 | Dúvidas sobre **exceção, retry, DLQ, redrive, ErrorHandler, at-least-once** | `references/error-handling-and-dlq.md` |
+| A fila recebe mensagens de um **tópico SNS** (raw delivery OFF) | seção *10* |
 
 ---
 
@@ -55,6 +56,14 @@ Antes de escrever qualquer código, confirme com o usuário (se o contexto for a
   4. Se `@SqsHandler` com discriminação por header: **qual header** carrega o tipo?
 
 **3. Rastreabilidade (logs).** De qual header/atributo da mensagem vem o `correlationId`? (Default: atributo de mensagem `correlationId`; se ausente, gera-se um novo — ver seção *9*.)
+
+**4. Origem das mensagens: a fila é subscrita em um tópico SNS?**
+
+- **Não / SQS direto** *(default)* — produtor publica diretamente na fila. Siga as seções 3 ou 4.
+- **SNS → SQS (fan-out), *raw message delivery* OFF** *(default do SNS)* — o SNS envolve o payload num envelope JSON antes de entregar ao SQS. Use `@SnsNotificationMessage` para desembrulhar automaticamente (ver seção *10*).
+- **SNS → SQS, *raw message delivery* ON** — o SNS entrega o payload bruto, sem envelope. Trate exatamente como SQS direto: siga a seção *3*.
+
+> Se o usuário não souber se raw delivery está ativo, assuma **OFF** (é o default do SNS) e use `@SnsNotificationMessage`.
 
 ---
 
@@ -317,6 +326,95 @@ public class MdcSqsInterceptor implements MessageInterceptor<Object> {
 
 ---
 
+## 10 — Mensagens originadas do SNS (@SnsNotificationMessage)
+
+Quando uma fila SQS é subscrita em um tópico SNS **com *raw message delivery* OFF** (o padrão), o SQS recebe o payload envolvido num envelope SNS:
+
+```json
+{
+  "Type": "Notification",
+  "MessageId": "abc-123",
+  "TopicArn": "arn:aws:sns:us-east-1:123456789012:pedidos",
+  "Subject": "Novo pedido",
+  "Message": "{\"pedidoId\":\"P-1\",\"clienteId\":\"C-9\",\"valorTotal\":199.90}",
+  "Timestamp": "2024-01-01T00:00:00.000Z",
+  "MessageAttributes": { ... }
+}
+```
+
+Sem tratamento especial, `@SqsListener` receberia esse envelope inteiro como o payload — não o DTO do evento. As anotações abaixo resolvem isso sem código adicional.
+
+> **Raw delivery ON → não use esta seção.** Se a subscrição SNS tiver *raw message delivery* ON, o SQS já recebe o payload bruto; use o listener normal da seção *3*.
+
+> **Sem dependência extra.** Todas as classes abaixo (`@SnsNotificationMessage`, `@SnsNotificationSubject`, `SnsNotification<T>`) fazem parte do `spring-cloud-aws-starter-sqs` — nenhuma dependência adicional.
+
+---
+
+### 10.1 — Payload direto (`@SnsNotificationMessage`)
+
+Extrai e desserializa automaticamente o campo `"Message"` do envelope SNS no tipo do parâmetro:
+
+```java
+import io.awspring.cloud.sqs.annotation.SnsNotificationMessage;
+
+@SqsListener("${app.queues.pedidos}")
+public void onPedidoCriado(@SnsNotificationMessage PedidoCriadoEvent event) {
+    // 'event' já é o DTO desserializado de "Message" — sem envelope.
+    log.info("Pedido criado", kv("pedidoId", event.pedidoId()));
+}
+```
+
+---
+
+### 10.2 — Com subject do SNS (`@SnsNotificationSubject`)
+
+Quando o produtor SNS preenche o campo `"Subject"` e o consumidor precisa dele:
+
+```java
+import io.awspring.cloud.sqs.annotation.SnsNotificationMessage;
+import io.awspring.cloud.sqs.annotation.SnsNotificationSubject;
+
+@SqsListener("${app.queues.pedidos}")
+public void onPedidoCriado(
+        @SnsNotificationSubject String subject,
+        @SnsNotificationMessage PedidoCriadoEvent event) {
+    log.info("Evento SNS recebido",
+        kv("subject", subject),
+        kv("pedidoId", event.pedidoId()));
+}
+```
+
+---
+
+### 10.3 — Metadados completos do SNS (`SnsNotification<T>`)
+
+Quando o listener precisa de `messageId`, `topicArn`, `subject` ou outros campos do envelope:
+
+```java
+import io.awspring.cloud.sqs.support.converter.SnsNotification;
+
+@SqsListener("${app.queues.pedidos}")
+public void onPedidoCriado(SnsNotification<PedidoCriadoEvent> notification) {
+    notification.getSubject().ifPresent(s -> log.info("Subject SNS: {}", s));
+
+    PedidoCriadoEvent event = notification.getMessage();
+    log.info("Processando pedido",
+        kv("pedidoId", event.pedidoId()),
+        kv("topicArn", notification.getTopicArn()),
+        kv("messageId", notification.getMessageId()));
+}
+```
+
+---
+
+### 10.4 — MDC / correlationId com mensagens SNS
+
+Com *raw delivery* OFF, o `correlationId` enviado pelo produtor vai para `MessageAttributes` do SNS. O SNS propaga esses atributos como atributos de mensagem SQS **somente se a subscrição tiver a política de filtragem configurada para passá-los**. Se não forem propagados, `message.getHeaders().get("correlationId")` retorna `null` no `MdcSqsInterceptor` (seção *9*).
+
+**Recomendação:** informe o usuário dessa dependência de configuração da subscrição SNS. Se o atributo chegar, o interceptor funciona sem alteração; se não chegar, o interceptor já gera um novo `correlationId` quando o valor é ausente — comportamento correto.
+
+---
+
 ## Checklist de conformidade
 
 - [ ] O modo de ack foi **escolhido com o usuário** (não assumido) e está coerente com a tolerância a perda.
@@ -329,5 +427,7 @@ public class MdcSqsInterceptor implements MessageInterceptor<Object> {
 - [ ] MDC é populado via `MessageInterceptor` e limpo em `afterProcessing`.
 - [ ] O usuário foi avisado sobre **entrega at-least-once** (idempotência é responsabilidade da aplicação) — **nenhum código de deduplicação foi gerado**.
 - [ ] `maxReceiveCount` + DLQ documentados como **infraestrutura** da fila.
+- [ ] Se a fila recebe mensagens de um tópico SNS com *raw delivery* OFF, usa `@SnsNotificationMessage` (ou `SnsNotification<T>`) — nunca recebe o envelope SNS como `String` para parsear à mão.
+- [ ] O usuário foi informado sobre a dependência de configuração da subscrição SNS para propagação de `MessageAttributes` (correlationId).
 </content>
 </invoke>
