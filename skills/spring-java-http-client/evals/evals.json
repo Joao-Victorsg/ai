@@ -1,0 +1,23 @@
+{
+  "skill_name": "spring-java-http-client",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Preciso consumir a API do GitHub no nosso serviço Spring Boot 4 (Java 25). Por enquanto só um endpoint: GET /repos/{owner}/{repo} que devolve o repositório (tem id, name, full_name e private). A base-url é https://api.github.com e o read-timeout desse downstream pode ser maior, uns 10s. Pode gerar o cliente HTTP completo?",
+      "expected_output": "Cliente completo no estilo nativo Boot 4: interface GithubClient com @HttpExchange e @GetExchange(\"/repos/{owner}/{repo}\") usando @PathVariable; record Repository; classe @Configuration com @ImportHttpServices(group=\"github\", types=GithubClient.class); bloco em application.yml sob spring.http.serviceclient.github com base-url e read-timeout 10s, e spring.http.clients com defaults. NÃO deve gerar @ConfigurationProperties custom, NÃO deve hardcodar base-url no código, NÃO deve usar HttpServiceProxyFactory manual. O nome do grupo 'github' deve ser idêntico na anotação e na propriedade.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Estou migrando um cliente Feign para o cliente nativo do Spring Boot 4. O serviço de billing exige um header Authorization Bearer com um token que pego de um TokenProvider, e quero propagar o correlationId. Também preciso de retry e circuit breaker: 5xx e timeout devem retentar, mas 404 não pode abrir o breaker. Como fica?",
+      "expected_output": "Interface @HttpExchange para billing; @ImportHttpServices(group=\"billing\"); um @Bean RestClientHttpServiceGroupConfigurer com groups.filterByName(\"billing\").forEachClient(...) adicionando requestInterceptor que faz setBearerAuth com o TokenProvider e seta o header de correlationId; service com @Retry(name=\"billing\") e @CircuitBreaker(name=\"billing\", fallbackMethod=...); config resilience4j com retry-exceptions e record-exceptions em HttpServerErrorException + ResourceAccessException e ignore-exceptions em HttpClientErrorException (justificando que 404 não abre o breaker). NÃO deve criar RetryableException/NonRetryableException custom. Deve mencionar que a política fina é da skill de Resilience4J.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "Já tenho um cliente HTTP do serviço de catálogo funcionando no meu projeto Spring Boot 4 (configurado via spring.http.serviceclient.catalog). Agora preciso adicionar um segundo cliente para o serviço de estoque (inventory), GET /items/{sku}. Quero adicionar sem mexer no que já existe.",
+      "expected_output": "Deve criar um pacote/arquivos NOVOS para inventory (interface InventoryClient com @GetExchange(\"/items/{sku}\"), record do item, @Configuration com @ImportHttpServices(group=\"inventory\")) e apenas um bloco novo em spring.http.serviceclient.inventory no yaml, SEM editar os arquivos do cliente catalog existente. Deve destacar explicitamente a propriedade Open-Closed: cliente novo = arquivos novos + bloco de propriedade, zero alteração no cliente existente.",
+      "files": []
+    }
+  ]
+}
