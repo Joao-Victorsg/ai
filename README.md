@@ -62,3 +62,25 @@ Implements **declarative HTTP clients** using **Spring Boot 4's native HTTP Inte
 **References:** `configuracao-e-transporte.md`, `erros-e-resiliencia.md`.
 
 **Trigger:** Use whenever an HTTP client is needed to consume a REST API from a Spring Boot 4 service, or when migrating from `@FeignClient`/OpenFeign.
+
+---
+
+## Rules
+
+Rules are **always-on** standards that Claude Code applies to every session in a repository — unlike skills, they are not triggered on demand but loaded as a baseline quality filter for all generated, reviewed, or refactored code.
+
+To take effect, a rule file must be placed under **`.claude/rules/`** in the target repository. Copy the desired rule from this repo's `rules/` folder into the consuming project's `.claude/rules/` directory.
+
+| Rule | Description |
+|---|---|
+| [java-standards](#java-standards) | Java 25 + Spring Boot 4 coding standards (always-on) |
+
+---
+
+### java-standards
+
+**Path:** `rules/java-standards.md`
+
+Always-on coding standards for **Java 25 + Spring Boot 4** projects. Enforces records for DTOs, self-constructing objects via contextual static factories (no MapStruct/external mappers), restricted Lombok usage (`@Data` forbidden), dependency inversion (inner domain classes depend on interfaces, not external infra implementations), modern Java features (sealed interfaces, pattern matching, virtual threads, text blocks, Scoped Values), JSpecify null safety, Jackson 3, and domain-meaningful exceptions instead of control-flow exceptions.
+
+**Installation:** Copy `rules/java-standards.md` into the target repository's `.claude/rules/` directory.
