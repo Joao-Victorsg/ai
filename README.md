@@ -2,6 +2,13 @@
 
 Repository containing skills, agents, rules, hooks, and other files related to AI/Copilot tooling.
 
+| Component | Folder | Loaded |
+|---|---|---|
+| Skills | `skills/` | On demand (triggered by task) |
+| Rules | `rules/` | Always-on (baseline quality filter) |
+| Hooks | `hooks/` | On agent lifecycle events |
+| Agents | `agents/` | Invoked for bounded, specialized tasks |
+
 ---
 
 ## Skills
@@ -84,3 +91,48 @@ To take effect, a rule file must be placed under **`.claude/rules/`** in the tar
 Always-on coding standards for **Java 25 + Spring Boot 4** projects. Enforces records for DTOs, self-constructing objects via contextual static factories (no MapStruct/external mappers), restricted Lombok usage (`@Data` forbidden), dependency inversion (inner domain classes depend on interfaces, not external infra implementations), modern Java features (sealed interfaces, pattern matching, virtual threads, text blocks, Scoped Values), JSpecify null safety, Jackson 3, and domain-meaningful exceptions instead of control-flow exceptions.
 
 **Installation:** Copy `rules/java-standards.md` into the target repository's `.claude/rules/` directory.
+
+---
+
+## Hooks
+
+Hooks are shell commands Claude Code runs on agent lifecycle events (`PreToolUse`, `Stop`, etc.) — deterministic enforcement and feedback loops, distinct from git hooks. Each lives under `hooks/<name>/` with the script, a `settings.example.json` to merge into the consuming repo's `.claude/settings.json`, and a README. Copy the script into the target repo's `.claude/hooks/`.
+
+| Hook | Event | Description |
+|---|---|---|
+| [java-build-check](#java-build-check) | `Stop` | Verifies the build once per turn before the agent finishes |
+| [java-standards-guard](#java-standards-guard) | `PreToolUse` | Blocks edits that introduce patterns banned by `java-standards` |
+
+---
+
+### java-build-check
+
+**Path:** `hooks/java-build-check/`
+
+Fires **once when the agent ends its turn** and runs scoped Maven goals (default `mvn -q -B test`; override via `MVN_GOALS`, up to `clean install`). Silent on success; on failure it returns the truncated errors and **blocks the stop** so Claude fixes the build before handing back. Loop-guarded via `stop_hook_active`. This is the right home for heavier verification — running it per-edit would be the expensive anti-pattern.
+
+---
+
+### java-standards-guard
+
+**Path:** `hooks/java-standards-guard/`
+
+A `PreToolUse` gate that inspects the content about to be written to a `.java` file and **blocks** (exit 2) high-confidence violations of `java-standards` before they hit disk: `@Data`, MapStruct/`@Mapper`, `System.out/err`/`printStackTrace`, and generic control-flow exceptions (`throw new RuntimeException(...)`). Turns the advisory rule into hard enforcement. Softer/contextual rules are left to the reviewer agent to avoid false positives.
+
+---
+
+## Agents
+
+Agents (subagents) are specialized assistants with their own context window and tool permissions, invoked for bounded tasks to keep the main session focused. Each lives under `agents/<name>.md` with YAML frontmatter (`name`, `description`, `tools`, `model`). Copy into the target repo's `.claude/agents/`.
+
+| Agent | Description |
+|---|---|
+| [spring-java-reviewer](#spring-java-reviewer) | Reviews Java/Spring changes against `java-standards` + the skills |
+
+---
+
+### spring-java-reviewer
+
+**Path:** `agents/spring-java-reviewer.md`
+
+A **senior-level**, read-only reviewer for **Java 25 + Spring Boot 4** changes. Reads the diff (or named files) and consults `rules/java-standards.md` plus the relevant skill (and its `references/`). Reviews across eleven dimensions: standards conformance, **null safety** (every realistic NPE path), **concurrency & parallelism** (shared mutable state, virtual-thread pinning, scope traps, parallel streams/`CompletableFuture`), **resilience** (timeouts, bounded idempotent retries, circuit breakers, messaging ack/DLQ, transaction boundaries, graceful shutdown), error handling & **observability** (logs/metrics/tracing — all three pillars, low-cardinality tags, context propagation), security, performance & data access (N+1, caching), **configuration & secrets hygiene** (validated `@ConfigurationProperties`, no secrets in config, fail-fast defaults), **change completeness** (blast radius — flags missing companions like a timeout for a new outbound call or a test for a behavior change), **Dockerfile / container hygiene** (multi-stage, non-root, container-aware JVM, signal handling), and tests. Reports findings grouped by severity (Blocker / Should-fix / Nitpick) with file:line, the concrete failure scenario, the violated rule, and a fix — ending in an approve / approve-with-nits / changes-requested verdict. It reports; it never edits.
