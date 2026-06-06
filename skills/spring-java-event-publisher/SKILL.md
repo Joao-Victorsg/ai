@@ -445,3 +445,4 @@ public class PedidoService {
 - [ ] O `correlationId` é propagado como header/atributo de mensagem.
 - [ ] Exceções do publisher **não são silenciadas** — retry fica no chamador.
 - [ ] Imports Jackson 3 usam `tools.jackson.*` — não `com.fasterxml.jackson.*`.
+- [ ] **Nenhum comentário desnecessário** no código gerado — sem Javadoc descritivo, sem comentários que explicam o *que* o código faz, sem referências à tarefa ou ao fix.

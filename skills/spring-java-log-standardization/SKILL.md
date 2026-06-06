@@ -384,6 +384,7 @@ Antes de considerar o logging implementado, valide:
 - [ ] Logs de `ERROR` incluem o `Throwable` (`ex`) como último argumento
 - [ ] Mensagens são descritivas e orientadas ao domínio (sem "ok", "erro", "done")
 - [ ] Apenas `INFO`, `WARN` e `ERROR` são usados (sem `DEBUG`/`TRACE` no padrão)
+- [ ] **Nenhum comentário desnecessário** no código gerado — sem Javadoc descritivo, sem comentários que explicam o *que* o código faz, sem referências à tarefa ou ao fix.
 
 ---
 

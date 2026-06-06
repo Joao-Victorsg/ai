@@ -21,6 +21,7 @@ Skills are reusable instruction sets for GitHub Copilot agents, scoped to specif
 | [spring-java-sqs-listener](#spring-java-sqs-listener) | SQS consumer workers with Spring Cloud AWS 4 |
 | [spring-java-event-publisher](#spring-java-event-publisher) | SQS/SNS event publisher with Spring Cloud AWS 4 |
 | [spring-java-http-client](#spring-java-http-client) | Declarative HTTP client with Spring Boot 4 HTTP Interfaces |
+| [spring-java-resilience4j](#spring-java-resilience4j) | Circuit Breaker + Retry with Resilience4J, Micrometer metrics and structured event logging |
 
 ---
 
@@ -72,6 +73,18 @@ Implements **declarative HTTP clients** using **Spring Boot 4's native HTTP Inte
 
 ---
 
+### spring-java-resilience4j
+
+**Path:** `skills/spring-java-resilience4j/`
+
+Makes calls to unstable resources (other microservices, external APIs, databases, brokers) fault-tolerant using **Resilience4J** on Java 25 + Spring Boot 4. Covers the two core patterns — **Retry** (retries transient failures with exponential backoff + jitter) and **Circuit Breaker** (stops hammering a sick downstream and lets it recover) — via the native `resilience4j-spring-boot4` starter with `@Retry`/`@CircuitBreaker` AOP annotations. Production-grade focus: correct mapping of retryable vs. ignored exceptions (retry `5xx`/timeouts, ignore `4xx`), automatic **Micrometer metrics** (counters, `CallNotPermittedException`, state transitions) with optional Prometheus export, and structured **SLF4J event logging** (`RegistryEventConsumer`) for breaker state changes and retry attempts/exhaustion.
+
+**References:** `observabilidade.md` (Micrometer metric catalogue, Actuator endpoints, Prometheus scrape), `tuning-avancado.md` (COUNT vs. TIME sliding window, slow-call thresholds, backoff, aspect ordering, idempotency, Time Limiter/Bulkhead).
+
+**Trigger:** Use whenever retry and circuit breaker are needed for a downstream call, or when the `spring-java-http-client` skill defers to this skill for resilience policy.
+
+---
+
 ## Rules
 
 Rules are **always-on** standards that Claude Code applies to every session in a repository — unlike skills, they are not triggered on demand but loaded as a baseline quality filter for all generated, reviewed, or refactored code.
@@ -88,7 +101,7 @@ To take effect, a rule file must be placed under **`.claude/rules/`** in the tar
 
 **Path:** `rules/java-standards.md`
 
-Always-on coding standards for **Java 25 + Spring Boot 4** projects. Enforces records for DTOs, self-constructing objects via contextual static factories (no MapStruct/external mappers), restricted Lombok usage (`@Data` forbidden), dependency inversion (inner domain classes depend on interfaces, not external infra implementations), modern Java features (sealed interfaces, pattern matching, virtual threads, text blocks, Scoped Values), JSpecify null safety, Jackson 3, and domain-meaningful exceptions instead of control-flow exceptions.
+Always-on coding standards for **Java 25 + Spring Boot 4** projects. Enforces records for DTOs, self-constructing objects via contextual static factories (no MapStruct/external mappers), restricted Lombok usage (`@Data` forbidden), dependency inversion (inner domain classes depend on interfaces, not external infra implementations), modern Java features (sealed interfaces, pattern matching, virtual threads, text blocks, Scoped Values), JSpecify null safety, Jackson 3, domain-meaningful exceptions instead of control-flow exceptions, and a strict **no-unnecessary-comments** policy (no what-the-code-does comments, no multi-paragraph Javadoc, no task/caller references in code).
 
 **Installation:** Copy `rules/java-standards.md` into the target repository's `.claude/rules/` directory.
 

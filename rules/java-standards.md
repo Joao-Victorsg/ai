@@ -80,6 +80,14 @@ depende da abstração, não do detalhe de infraestrutura.
   (`OrderAlreadyConfirmedException`), nunca `RuntimeException`/`IllegalStateException`
   genéricos.
 
+## Comentários no código
+
+**Não adicione comentários** ao código gerado, salvo quando o *porquê* for não-óbvio: uma restrição oculta, uma invariante sutil ou um contorno para um bug específico. Se remover o comentário não confundiria um futuro leitor, não escreva.
+
+- **Nunca** escreva comentários que descrevem o que o código faz — identificadores bem nomeados já fazem isso.
+- **Nunca** adicione Javadoc de múltiplos parágrafos ou blocos de comentário multi-linha — uma linha curta no máximo.
+- **Nunca** referencie a tarefa atual, o fix, ou quem chama o método (ex.: "usado por X", "adicionado para o fluxo Y") — isso pertence ao PR e apodrece conforme o código evolui.
+
 ## Antes de entregar
 
 Releia estas regras e confirme conformidade do código gerado antes de finalizar.

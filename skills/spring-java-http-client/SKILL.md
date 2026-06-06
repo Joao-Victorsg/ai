@@ -302,3 +302,4 @@ A config `resilience4j.*` (com `retry-exceptions`/`ignore-exceptions`/`record-ex
 - [ ] **Sem exceções custom** (`Retryable`/`NonRetryable`): resiliência keada em `HttpServerErrorException`/`ResourceAccessException` (retry/record) e `HttpClientErrorException` (ignore).
 - [ ] Resilience4J nunca lista a base `RestClientException` em retry/record.
 - [ ] Wrapper de resiliência gerado no formato do POC, com nota de que a **política fina é da skill de Resilience4J**.
+- [ ] **Nenhum comentário desnecessário** no código gerado — sem Javadoc descritivo, sem comentários que explicam o *que* o código faz, sem referências à tarefa ou ao fix.

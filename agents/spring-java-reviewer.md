@@ -41,7 +41,9 @@ Lombok limited to `@RequiredArgsConstructor`/`@Builder` (`@Data` never;
 inversion (domain depends on interfaces, not infra); modern Java (sealed + records,
 exhaustive pattern-matching switch over `if-else instanceof`, record patterns, switch
 expressions, text blocks, sequenced collections); domain-meaningful exceptions, never
-generic ones; immutability by default.
+generic ones; immutability by default; **no unnecessary comments** — flag any comment
+that describes *what* the code does, multi-paragraph Javadoc, or task/caller
+references (those belong in the PR, not the code).
 
 ### 2. Null safety
 Verify JSpecify is honored: `@NullMarked` packages with explicit `@Nullable` only

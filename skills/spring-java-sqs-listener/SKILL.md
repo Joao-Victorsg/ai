@@ -429,5 +429,6 @@ Com *raw delivery* OFF, o `correlationId` enviado pelo produtor vai para `Messag
 - [ ] `maxReceiveCount` + DLQ documentados como **infraestrutura** da fila.
 - [ ] Se a fila recebe mensagens de um tópico SNS com *raw delivery* OFF, usa `@SnsNotificationMessage` (ou `SnsNotification<T>`) — nunca recebe o envelope SNS como `String` para parsear à mão.
 - [ ] O usuário foi informado sobre a dependência de configuração da subscrição SNS para propagação de `MessageAttributes` (correlationId).
+- [ ] **Nenhum comentário desnecessário** no código gerado — sem Javadoc descritivo, sem comentários que explicam o *que* o código faz, sem referências à tarefa ou ao fix.
 </content>
 </invoke>

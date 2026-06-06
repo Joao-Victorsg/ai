@@ -1,0 +1,50 @@
+{
+  "skill_name": "spring-java-resilience4j",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "No nosso serviço Spring Boot 4 (Java 25) a gente já tem um cliente HTTP pro gateway de pagamento (uma interface @HttpExchange chamada PaymentHttpClient, com authorize(PaymentRequest) devolvendo um PaymentHttpResponse com authorizationId). O problema é que quando o gateway dá uns 500 ou estoura timeout, a falha sobe direto e derruba o checkout. Quero proteger essa chamada: retentar 5xx e timeout, mas NÃO retentar 404/400; e se continuar caindo, parar de bater no gateway por um tempo. Quando não der, devolve um resultado degradado em vez de explodir. Pode montar isso com Resilience4J?",
+      "expected_output": "Adapter PaymentGatewayClient (infra, @Component) implementando um port PaymentGateway (domínio), com @Retry(name=\"paymentGateway\", fallbackMethod=...) e @CircuitBreaker(name=\"paymentGateway\") no método authorize, delegando ao PaymentHttpClient. fallbackMethod no @Retry (não no @CircuitBreaker), com assinatura (PaymentRequest, Throwable) devolvendo um PaymentResult.Unavailable. PaymentResult como sealed interface (Authorized/Declined/Unavailable). application.yml com resilience4j.retry.instances.paymentGateway (retry-exceptions: HttpServerErrorException + ResourceAccessException; ignore-exceptions inclui HttpClientErrorException E CallNotPermittedException) e resilience4j.circuitbreaker.instances.paymentGateway (record-exceptions 5xx+timeout, ignore-exceptions HttpClientErrorException). Dep resilience4j-spring-boot4:2.4.0 + spring-boot-starter-aop + actuator. NÃO deve criar exceções RetryableException/NonRetryableException custom, NÃO deve pôr o fallback no @CircuitBreaker, NÃO deve relançar RuntimeException no fallback.",
+      "files": [],
+      "assertions": [
+        "Declara a dependência resilience4j-spring-boot4 na versão 2.4.0",
+        "Aplica @Retry e @CircuitBreaker no mesmo método com o MESMO nome de instância",
+        "fallbackMethod fica no @Retry (aspecto externo), não no @CircuitBreaker",
+        "retry ignore-exceptions inclui CallNotPermittedException",
+        "retry retenta 5xx + timeout e ignora 4xx; circuitbreaker conta 5xx/timeout e ignora 4xx",
+        "Resiliência num adapter de infra que implementa um port do domínio",
+        "Resultado degradado como sealed interface; fallback não relança RuntimeException",
+        "Não cria RetryableException/NonRetryableException custom"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Coloquei @CircuitBreaker e @Retry numas chamadas pra API de estoque (instância chamada 'inventory') no meu Spring Boot 4, mas o time de SRE reclamou que não consegue enxergar nada: querem as métricas do resilience4j no Prometheus/Grafana, querem um log toda vez que o circuit breaker abre ou fecha, e um log quando um retry acontece e quando esgota as tentativas. Como deixo isso observável direito?",
+      "expected_output": "Dependências: micrometer-registry-prometheus (runtime) + spring-boot-starter-actuator, explicando que o binding Micrometer do resilience4j é automático. application.yml expondo management.endpoints.web.exposure.include com prometheus, metrics, circuitbreakers, circuitbreakerevents, retries, retryevents. Uma @Configuration com dois beans RegistryEventConsumer<CircuitBreaker> e RegistryEventConsumer<Retry>: o de CircuitBreaker usa onStateTransition logando WARN ao abrir (OPEN) e INFO ao fechar (CLOSED); o de Retry usa onRetry (WARN, a cada tentativa) e onError (ERROR, no esgotamento). Deve citar os nomes das métricas (resilience4j.circuitbreaker.state, .calls; resilience4j.retry.calls) e que a tag name='inventory' correlaciona métrica e log. Deve preferir RegistryEventConsumer (aplica a todas as instâncias) em vez de buscar cada breaker pelo nome. Idealmente usa kv() do logstash-encoder.",
+      "files": [],
+      "assertions": [
+        "Inclui micrometer-registry-prometheus + actuator e explica que o binding Micrometer é automático",
+        "Expõe via Actuator prometheus/metrics e circuitbreakers + retries (e *events)",
+        "RegistryEventConsumer<CircuitBreaker> com onStateTransition: WARN ao abrir, INFO ao fechar",
+        "RegistryEventConsumer<Retry> com onRetry (cada tentativa) e onError (esgotamento)",
+        "Cita métricas corretas: resilience4j.circuitbreaker.state/.calls, resilience4j.retry.calls",
+        "Usa RegistryEventConsumer em vez de buscar cada breaker pelo nome",
+        "Aponta correlação métrica<->log pela tag/campo name='inventory'"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Tenho um POST /charges pro serviço de cobrança (Spring Boot 4) que efetivamente cria uma cobrança no cartão do cliente. Queria botar retry nisso pra aguentar instabilidade, com circuit breaker junto. É só sair anotando com @Retry e @CircuitBreaker?",
+      "expected_output": "Deve LEVANTAR o risco de idempotência: retentar um POST que cria/cobra pode duplicar a cobrança, porque um timeout (ResourceAccessException) pode ocorrer depois do downstream já ter processado. Não deve simplesmente sair anotando. Deve recomendar: ou NÃO incluir ResourceAccessException nos retry-exceptions desse caso, ou exigir uma idempotency key do serviço de cobrança (e então o retry volta a ser seguro), restringindo o retry. Pode mostrar @CircuitBreaker normalmente (o breaker não duplica efeito) e um @Retry com política restrita/condicional, com fallback devolvendo resultado de domínio. Deve mencionar a regra de ignorar CallNotPermittedException no retry e a ordem dos aspectos. NÃO deve recomendar retry cego de timeout numa operação financeira não idempotente.",
+      "files": [],
+      "assertions": [
+        "Levanta o risco de idempotência (retry de POST que cobra pode duplicar a cobrança)",
+        "Não recomenda retry cego de ResourceAccessException (timeout) na operação não idempotente",
+        "Recomenda idempotency key (ou restringir o retry a falhas seguras)",
+        "Mantém o @CircuitBreaker normalmente (o breaker não duplica efeito)",
+        "Menciona ignorar CallNotPermittedException no retry e/ou a ordem dos aspectos",
+        "Não responde 'sim, é só anotar' sem ressalvas"
+      ]
+    }
+  ]
+}
